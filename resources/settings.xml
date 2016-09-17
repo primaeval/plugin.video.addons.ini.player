@@ -1,0 +1,10 @@
+<settings>
+<category label="Source">
+<setting id="addons.type" label="addons.ini Source" type="enum" enable="true" visible="true" default="0" values="File|Url" />
+<setting id="addons.file" label="addons.in File" type="file" visible="eq(-1,0)" />
+<setting id="addons.url" label="addons.in Url" type="text" visible="eq(-2,1)" />
+</category>
+<category label="Display">
+<setting id="view_mode" label="View Mode" type="number" default="51" />
+</category>
+</settings>
