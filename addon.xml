@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <addon id="plugin.video.addons.ini.player"
 version="0.0.1"
-name="addons.ini player"
+name="addons.ini Player"
 provider-name="primaeval">
 <requires>
   <import addon="xbmc.python" version="2.20.0"/>
@@ -13,7 +13,7 @@ provider-name="primaeval">
 </extension>
 <extension point="xbmc.service" library="service.py" start="login"/>
 <extension point="xbmc.addon.metadata">
-  <summary lang="en">addons.ini player</summary>
+  <summary lang="en">addons.ini Player</summary>
   <description lang="en"></description>
   <disclaimer lang="en">.</disclaimer>
 </extension>

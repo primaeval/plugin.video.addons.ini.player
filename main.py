@@ -37,6 +37,7 @@ def remove_formatting(label):
     label = re.sub(r"\[/?COLOR.*?\]",'',label)
     return label
 
+
 @plugin.route('/addon/<id>')
 def addon(id):
     addon = plugin.get_storage(id)
@@ -49,6 +50,135 @@ def addon(id):
             'path': url,
             'thumbnail':get_icon_path('tv'),
             'is_playable':True,
+        })
+        '''
+        if plugin.get_setting('test') == 'true':
+            if url.startswith("ftp://"):
+                continue
+            xbmc.executebuiltin("PlayMedia(%s)" % url)
+            countdown = 10
+            while countdown:
+                time.sleep(1)
+                countdown = countdown -1
+                if xbmc.Player().isPlaying():
+                    time.sleep(5)
+                    break
+            path = xbmc.translatePath("special://temp/%s.png" % re.sub("[^\w ]","",name, flags=re.UNICODE))
+            xbmc.executebuiltin("TakeScreenshot(%s)" % path)
+            xbmc.executebuiltin("PlayerControl(Stop)")
+        '''
+
+    return items
+
+@plugin.route('/add_channel')
+def add_channel():
+    channels = plugin.get_storage('channels')
+    d = xbmcgui.Dialog()
+    channel = d.input("Add Channel")
+    if channel:
+        channels[channel] = ""
+    xbmc.executebuiltin('Container.Refresh')
+
+
+@plugin.route('/remove_channel')
+def remove_channel():
+    channels = plugin.get_storage('channels')
+    channel_list = sorted(channels)
+    d = xbmcgui.Dialog()
+    which = d.select("Remove Channel",channel_list)
+    if which == -1:
+        return
+    channel = channel_list[which]
+    del channels[channel]
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/remove_this_channel/<channel>')
+def remove_this_channel(channel):
+    channels = plugin.get_storage('channels')
+    del channels[channel]
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/clear_channels')
+def clear_channels():
+    channels = plugin.get_storage('channels')
+    channels.clear()
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/import_channels')
+def import_channels():
+    channels = plugin.get_storage('channels')
+    d = xbmcgui.Dialog()
+    filename = d.browse(1, 'Import Channels', 'files', '', False, False, 'special://home/')
+    if not filename:
+        return
+    if filename.endswith('.ini'):
+        lines = xbmcvfs.File(filename,'rb').read().splitlines()
+        for line in lines:
+            if not line.startswith('[') and not line.startswith('#') and "=" in line:
+                channel_url = line.split('=',1)
+                if len(channel_url) == 2:
+                    name = channel_url[0]
+                    channels[name] = ""
+    xbmc.executebuiltin('Container.Refresh')
+
+@plugin.route('/stream_search/<channel>')
+def stream_search(channel):
+    #folders = plugin.get_storage('folders')
+    streams = {}
+
+    folder = plugin.get_setting("addons.folder")
+    file = plugin.get_setting("addons.file")
+    filename = os.path.join(folder,file)
+    f = xbmcvfs.File(filename,"rb")
+    lines = f.read().splitlines()
+    for line in lines:
+        if line.startswith('['):
+            addon = line.strip('[]')
+            if addon not in streams:
+                streams[addon] = {}
+        elif "=" in line:
+            (name,url) = line.split('=',1)
+            if url and addon is not None:
+                streams[addon][url] = name
+
+    channel_search = channel.lower().replace(' ','')
+    stream_list = []
+    for id in sorted(streams):
+        files = streams[id]
+        for f in sorted(files, key=lambda k: files[k]):
+            label = files[f]
+            label_search = label.lower().replace(' ','')
+            if label_search in channel_search or channel_search in label_search:
+                stream_list.append((id,f,label))
+    labels = ["[%s] %s" % (x[0],x[2]) for x in stream_list]
+    d = xbmcgui.Dialog()
+    which = d.select(channel, labels)
+    if which == -1:
+        return
+    stream_name = stream_list[which][2]
+    stream_link = stream_list[which][1]
+    plugin.set_resolved_url(stream_link)
+
+
+
+@plugin.route('/channel_player')
+def channel_player():
+    channels = plugin.get_storage("channels")
+
+    items = []
+    for channel in sorted(channels):
+        context_items = []
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_channel))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_this_channel, channel=channel))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Import Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(import_channels))))
+        context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Clear Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(clear_channels))))
+        items.append(
+        {
+            'label': channel,
+            'path': plugin.url_for('stream_search',channel=channel),
+            'thumbnail':get_icon_path('tv'),
+            'is_playable': True,
+            'context_menu': context_items,
         })
     return items
 
@@ -77,9 +207,22 @@ def index():
         elif "=" in line:
             (name,url) = line.split('=',1)
             if url and addon is not None:
-                addon[name] = url
-                    
+                addon[name] = url.strip('@ ')
+
     items = []
+    context_items = []
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Add Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(add_channel))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Remove Channel', 'XBMC.RunPlugin(%s)' % (plugin.url_for(remove_channel))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Import Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(import_channels))))
+    context_items.append(("[COLOR yellow][B]%s[/B][/COLOR] " % 'Clear Channels', 'XBMC.RunPlugin(%s)' % (plugin.url_for(clear_channels))))
+    items.append(
+    {
+        'label': "Channels",
+        'path': plugin.url_for('channel_player'),
+        'thumbnail':get_icon_path('tv'),
+        'context_menu': context_items,
+    })
+
     for id in sorted(addons):
         items.append(
         {
@@ -88,7 +231,7 @@ def index():
             'thumbnail':get_icon_path('tv'),
         })
 
-    
+
     return items
 
 
