@@ -46,9 +46,9 @@ def addon(id):
         url = addon[name]
         items.append(
         {
-            'label': name,
+            'label': remove_formatting(name),
             'path': url,
-            'thumbnail':get_icon_path('tv'),
+            'thumbnail':xbmcaddon.Addon(id).getAddonInfo('icon') or get_icon_path('tv'),
             'is_playable':True,
         })
         '''
@@ -196,6 +196,7 @@ def stream_search(channel):
         items.append({
         "label":label,
         "path":path,
+        "thumbnail":xbmcaddon.Addon(s[0]).getAddonInfo('icon') or get_icon_path('tv'),
         'is_playable': True,
         })
     return items
