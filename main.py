@@ -108,7 +108,7 @@ def clear_channels():
 def import_channels():
     channels = plugin.get_storage('channels')
     d = xbmcgui.Dialog()
-    filename = d.browse(1, 'Import Channels', 'files', '', False, False, 'special://home/')
+    filename = d.browse(1, 'Import Channels (name=url .ini file)', 'files', '', False, False, 'special://home/')
     if not filename:
         return
     if filename.endswith('.ini'):
@@ -121,8 +121,8 @@ def import_channels():
                     channels[name] = ""
     xbmc.executebuiltin('Container.Refresh')
 
-@plugin.route('/stream_search/<channel>')
-def stream_search(channel):
+@plugin.route('/stream_search_dialog/<channel>')
+def stream_search_dialog(channel):
     #folders = plugin.get_storage('folders')
     streams = {}
 
@@ -159,6 +159,48 @@ def stream_search(channel):
     stream_link = stream_list[which][1]
     plugin.set_resolved_url(stream_link)
 
+@plugin.route('/stream_search/<channel>')
+def stream_search(channel):
+    #folders = plugin.get_storage('folders')
+    streams = {}
+
+    folder = plugin.get_setting("addons.folder")
+    file = plugin.get_setting("addons.file")
+    filename = os.path.join(folder,file)
+    f = xbmcvfs.File(filename,"rb")
+    lines = f.read().splitlines()
+    for line in lines:
+        if line.startswith('['):
+            addon = line.strip('[]')
+            if addon not in streams:
+                streams[addon] = {}
+        elif "=" in line:
+            (name,url) = line.split('=',1)
+            if url and addon is not None:
+                streams[addon][url] = remove_formatting(name)
+
+    channel_search = channel.lower().replace(' ','')
+    stream_list = []
+    for id in sorted(streams):
+        files = streams[id]
+        for f in sorted(files, key=lambda k: files[k]):
+            label = files[f]
+            label_search = label.lower().replace(' ','')
+            if label_search in channel_search or channel_search in label_search:
+                stream_list.append((id,f,label))
+    #labels = ["[%s] %s" % (x[0],x[2]) for x in stream_list]
+    items = []
+    for s in stream_list:
+        label = "%s - %s" % (s[2], xbmcaddon.Addon(s[0]).getAddonInfo('name'))
+        path = s[1]
+        items.append({
+        "label":label,
+        "path":path,
+        'is_playable': True,
+        })
+    return items
+
+
 @plugin.route('/export_channels')
 def export_channels():
     channels = plugin.get_storage('channels')
@@ -187,7 +229,7 @@ def channel_player():
             'label': channel,
             'path': plugin.url_for('stream_search',channel=channel),
             'thumbnail':get_icon_path('tv'),
-            'is_playable': True,
+            #'is_playable': True,
             'context_menu': context_items,
         })
     return items
@@ -237,9 +279,9 @@ def index():
     for id in sorted(addons):
         items.append(
         {
-            'label': id,
+            'label': xbmcaddon.Addon(id).getAddonInfo('name'),
             'path': plugin.url_for('addon',id=id),
-            'thumbnail':get_icon_path('tv'),
+            'thumbnail':xbmcaddon.Addon(id).getAddonInfo('icon'),
         })
 
 
